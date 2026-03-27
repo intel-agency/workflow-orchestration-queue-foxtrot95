@@ -13,6 +13,98 @@ scope: repository
     </summary>
   </purpose>
 
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PROJECT-SPECIFIC: OS-APOW (Orchestrator for Sentinel, Planning, and Orchestration Workflows)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <project_overview>
+    <summary>
+      OS-APOW (Orchestrator for Sentinel, Planning, and Orchestration Workflows) is an autonomous
+      AI orchestration platform that uses GitHub Issues as a task queue. It provides a Python-based
+      backend service with FastAPI for handling webhooks and a polling sentinel for task processing.
+    </summary>
+    <core_concept>
+      The system treats GitHub Issues as a distributed work queue. Issues labeled with `agent:queued`
+      are picked up by the Sentinel, processed by the Worker (opencode CLI), and their status is
+      tracked via GitHub labels (`agent:in-progress`, `agent:done`, `agent:failed`).
+    </core_concept>
+  </project_overview>
+
+  <setup_commands>
+    <summary>Python project using uv for dependency management.</summary>
+    <commands>
+      <command desc="Install dependencies">`uv sync --extra dev`</command>
+      <command desc="Run tests">`uv run pytest`</command>
+      <command desc="Run linting">`uv run ruff check src/`</command>
+      <command desc="Auto-fix lint issues">`uv run ruff check --fix src/`</command>
+      <command desc="Run type checking">`uv run mypy src/`</command>
+      <command desc="Run the API server">`uv run uvicorn orchestrator.main:app --reload --port 8000`</command>
+    </commands>
+  </setup_commands>
+
+  <project_structure>
+    <tree>
+src/orchestrator/
+├── __init__.py              # Package initialization
+├── main.py                  # FastAPI application entry point
+├── api/
+│   ├── __init__.py
+│   └── routes.py            # API endpoints (health, readiness, webhooks)
+├── models/
+│   ├── __init__.py
+│   └── work_item.py         # Pydantic models for WorkItem, TaskType, WorkItemStatus
+├── queue/
+│   ├── __init__.py
+│   └── github_queue.py      # GitHub Issues as work queue (ITaskQueue, GitHubQueue)
+├── services/
+│   ├── __init__.py
+│   ├── sentinel.py          # Polling orchestrator that claims and processes tasks
+│   └── notifier.py          # Webhook receiver for GitHub events
+tests/
+├── __init__.py
+└── test_main.py             # API endpoint tests
+plan_docs/                   # Planning documents (external-generated)
+    </tree>
+  </project_structure>
+
+  <architecture>
+    <component name="Sentinel">
+      A polling orchestrator that runs in a loop, querying GitHub for issues labeled
+      `agent:queued`, claiming them (adding `agent:in-progress` label), and delegating
+      to the Worker (opencode CLI). Sends heartbeats to show activity.
+    </component>
+    <component name="Notifier">
+      A FastAPI-based webhook receiver that listens for GitHub events (issues, PR comments,
+      reviews) and can trigger the orchestration workflow. Provides health/readiness endpoints.
+    </component>
+    <component name="Work Queue">
+      GitHub Issues serve as the distributed work queue. Labels are used for state management:
+      `agent:queued` (ready), `agent:in-progress` (being processed), `agent:done` (completed),
+      `agent:failed` (error). Comments are used for logging and heartbeat updates.
+    </component>
+    <component name="Worker">
+      The opencode CLI runs inside a devcontainer, executing the Orchestrator agent which
+      delegates to specialist sub-agents based on the task type.
+    </component>
+  </architecture>
+
+  <python_code_style>
+    <tooling>
+      <item>**Package manager**: uv (fast Python package installer)</item>
+      <item>**Linter**: ruff (replaces flake8, isort, pyupgrade)</item>
+      <item>**Type checker**: mypy with strict mode</item>
+      <item>**Test framework**: pytest with pytest-asyncio</item>
+    </tooling>
+    <conventions>
+      <rule>Python 3.12+ with type hints everywhere</rule>
+      <rule>Use `list[X]` and `X | None` instead of `typing.List` and `Optional`</rule>
+      <rule>Use `enum.StrEnum` instead of `str, Enum` for string enums</rule>
+      <rule>Line length: 100 characters (ruff enforced)</rule>
+      <rule>Pydantic v2 models for all data structures</rule>
+      <rule>Async/await for all I/O operations</rule>
+      <rule>FastAPI dependency injection for shared resources</rule>
+    </conventions>
+  </python_code_style>
+
   <template_usage>
     <summary>
       This repository is a **GitHub template repo** (`intel-agency/workflow-orchestration-queue-foxtrot95`).
